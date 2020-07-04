@@ -1,3 +1,4 @@
 build
 .clangd
-sdconfig.old
+sdkconfig.old
+sdkconfig

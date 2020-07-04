@@ -1,34 +1,20 @@
-#include "Arduino.h"
 #include "esp_log.h"
 #include "esp_system.h"
-#include "esp_task_wdt.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "soc/soc.h"
 
-extern "C" {
-void app_main();
-}
 static const char *WIFI_TAG = "wifi";
-TaskHandle_t loopTaskHandle = NULL;
-// Needed so arduino code can use the watchdog task. TODO: maybe remove?
-bool loopTaskWDTEnabled;
-void loop(void *parameters) {
-  for (;;) {
-    if (loopTaskWDTEnabled) {
-      esp_task_wdt_reset();
-    }
-    // Arduino code here;
-    if (serialEventRun)
-      serialEventRun();
-  }
-}
 
 #define SSID CONFIG_ESP_SSID
 #define PASS CONFIG_ESP_PASS
+#define WIFI_CONNECTED_BIT BIT0
 
-void wifi_handler(void *parameters) {}
+void wifi_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                  void *event_data) {}
 
 static EventGroupHandle_t wifi_event_group;
 void wifi_init() {
@@ -61,26 +47,18 @@ void wifi_init() {
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
   ESP_ERROR_CHECK(esp_wifi_start());
-
-  ESP_LOGI(TAG, "wifi_init_sta finished.");
-
   /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or
    * connection failed for the maximum number of re-tries (WIFI_FAIL_BIT). The
    * bits are set by event_handler() (see above) */
-  EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-                                         WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+  EventBits_t bits = xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT,
                                          pdFALSE, pdFALSE, portMAX_DELAY);
 
   /* xEventGroupWaitBits() returns the bits before the call returned, hence we
    * can test which event actually happened. */
   if (bits & WIFI_CONNECTED_BIT) {
-    ESP_LOGI(TAG, "connected to ap SSID:%s password:%s", EXAMPLE_ESP_WIFI_SSID,
-             EXAMPLE_ESP_WIFI_PASS);
-  } else if (bits & WIFI_FAIL_BIT) {
-    ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
-             EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+    ESP_LOGI(WIFI_TAG, "connected to ap SSID:%s", SSID);
   } else {
-    ESP_LOGE(TAG, "UNEXPECTED EVENT");
+    ESP_LOGE(WIFI_TAG, "unexpected event");
   }
 
   /* The event will not be processed after unregister */
@@ -88,7 +66,7 @@ void wifi_init() {
       IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
   ESP_ERROR_CHECK(esp_event_handler_instance_unregister(
       WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
-  vEventGroupDelete(s_wifi_event_group);
+  vEventGroupDelete(wifi_event_group);
 }
 
 void app_main() {
@@ -105,10 +83,5 @@ void app_main() {
 
   // Connect to mqtt
 
-  // Start Arduino
-  initArduino();
-  loopTaskWDTEnabled = false;
-  xTaskCreateUniversal(loop, "loop", 8192, NULL, 1, &loopTaskHandle,
-                       CONFIG_ARDUINO_RUNNING_CORE);
   // Start SPI task
 }
