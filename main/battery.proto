@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package battery;
+
+enum OffReason {
+  OFF_PLACEHOLDER = 0;
+  OFF_NO_POWER = 1;
+  OFF_SWITCHED_OFF_POWER = 2;
+  OFF_SWITCHED_OFF_REGISTER = 4;
+  OFF_REMOTE_INPUT = 8;
+  OFF_PROTECTION = 16;
+  OFF_PAYGO = 32;
+  OFF_BMS = 64;
+  OFF_ENGINE_SHUTDOWN = 128;
+  OFF_ANALYSING_INPUT = 256;
+};
+
+enum Error {
+  ERROR_NONE = 0;
+  ERROR_BATTERY_VOLTAGE_HIGH = 2;
+  ERROR_CHARGER_TEMP_HIGH = 17;
+  ERROR_CHARGER_CURRENT_HIGH = 18;
+  ERROR_CHARGER_CURRENT_REVERSED = 19;
+  ERROR_BULK_TIME_LIMIT_EXCEEDED = 20;
+  ERROR_CURRENT_SENSOR_ISSUE = 21;
+  ERROR_TERMINALS_OVERHEATED = 26;
+  ERROR_CONVERTER_ISSUE = 28;
+  ERROR_SOLAR_VOLTAGE_HIGH = 33;
+  ERROR_SOLAR_CURRENT_HIGH = 34;
+  ERROR_SHUTDOWN_BATTERY_VOLTAGE = 38;
+  ERROR_SHUTDOWN_CURRENT_FLOW = 39;
+  ERROR_LOST_COMMUNICATION = 65;
+  ERROR_SYNC_CONFIGURATION = 66;
+  ERROR_BMS_CONNECTION = 67;
+  ERROR_NETWORK_CONFIG = 68;
+  ERROR_FACTORY_CALIBRATION = 116;
+  ERROR_BAD_FIRMWARE = 117;
+  ERROR_SETTINGS_INVALID = 119;
+};
+
+enum State {
+  STATE_OFF = 0;
+  STATE_FAULT = 2;
+  STATE_BULK = 3;
+  STATE_ABSORPTION = 4;
+  STATE_FLOAT = 5;
+  STATE_EQUALIZE_MANUAL = 7;
+  STATE_STARTING_UP = 245;
+  STATE_EQUALIZE_AUTO = 247;
+  STATE_EXTERNAL_CONTROL = 252;
+};
+
+enum Mode {
+  MODE_OFF = 0;
+  MODE_LIMITED = 1;
+  MODE_ACTIVE = 2;
+};
+
+message Stat {
+  uint32 timestamp = 1;
+  uint32 current = 2; // IL
+  bool load = 3; // LOAD
+  uint32 battery_temperature = 4; // T -- maybe not there?
+  bool relay = 5; // RELAY
+  OffReason off_reason = 6; // OR
+  uint32 yield_total = 7; // H19
+  uint32 yield_today = 8; // H20
+  uint32 max_power_today = 9; // H21
+  uint32 yield_yesterday = 10; // H22
+  uint32 max_power_yesterday = 11; // H23
+  Error error = 12; // ERR
+  State state = 13; // CS
+  string firmware_version = 14; // FW
+  string product_id = 15; // PID
+  string serial_number = 16; // SER#
+  uint32 day_number = 17; // HSDS
+  Mode mode = 18; // MPTT
+}

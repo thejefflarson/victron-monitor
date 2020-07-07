@@ -1,4 +1,4 @@
-menu "Wifi Configuration"
+menu "Monitor Configuration"
     config SSID
         string "WiFi SSID"
         default "myssid"
@@ -10,4 +10,10 @@ menu "Wifi Configuration"
         default "mypassword"
         help
             WiFi password (WPA or WPA2) for the example to use.
+
+    config BROKER
+        string "MQTT Broker"
+        default "wss://mqtt.eclipse.org:443/mqtt"
+        help
+            MQTT Broker to connect to.
 endmenu
