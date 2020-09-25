@@ -1,5 +1,4 @@
 syntax = "proto3";
-
 package battery;
 
 enum OffReason {
@@ -59,20 +58,37 @@ enum Mode {
 message Stat {
   uint32 timestamp = 1;
   uint32 current = 2; // IL
-  bool load = 3; // LOAD
-  uint32 battery_temperature = 4; // T -- maybe not there?
-  bool relay = 5; // RELAY
-  OffReason off_reason = 6; // OR
-  uint32 yield_total = 7; // H19
-  uint32 yield_today = 8; // H20
-  uint32 max_power_today = 9; // H21
-  uint32 yield_yesterday = 10; // H22
-  uint32 max_power_yesterday = 11; // H23
-  Error error = 12; // ERR
-  State state = 13; // CS
-  string firmware_version = 14; // FW
-  string product_id = 15; // PID
-  string serial_number = 16; // SER#
-  uint32 day_number = 17; // HSDS
-  Mode mode = 18; // MPTT
+  bool has_current = 3;
+  bool load = 4; // LOAD
+  bool has_load = 5;
+  uint32 battery_temperature = 6; // T -- maybe not there?
+  bool has_battery_temperature = 7;
+  bool relay = 8; // RELAY
+  bool has_relay = 9;
+  OffReason off_reason = 10; // OR
+  bool has_off_reason = 11;
+  uint32 yield_total = 12; // H19
+  bool has_yield_total = 13;
+  uint32 yield_today = 14; // H20
+  bool has_yield_today = 15;
+  uint32 max_power_today = 16; // H21
+  bool has_max_power_today = 17;
+  uint32 yield_yesterday = 18; // H22
+  bool has_yield_yesterday = 19;
+  uint32 max_power_yesterday = 20; // H23
+  bool has_max_power_yesterday = 21;
+  Error error = 22; // ERR
+  bool has_error = 23;
+  State state = 24; // CS
+  bool has_state = 25;
+  string firmware_version = 26; // FW
+  bool has_firmware_version = 27;
+  string product_id = 28; // PID
+  bool has_product_id = 29;
+  string serial_number = 30; // SER#
+  bool has_serial_number = 31;
+  uint32 day_number = 32; // HSDS
+  bool has_day_number = 33;
+  Mode mode = 34; // MPTT
+  bool has_mode = 35;
 }

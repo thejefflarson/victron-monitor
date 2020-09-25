@@ -10,12 +10,16 @@
 #include "hal/uart_types.h"
 #include "mqtt_client.h"
 #include "nvs_flash.h"
+#include "parser.h"
 #include "sdkconfig.h"
 #include "soc/soc.h"
 #include <cstddef>
+#include <cstring>
+#include <sys/_types/_size_t.h>
 
-static const char *WIFI_TAG = "wifi";
-static const char *MQTT_TAG = "mqtt";
+const char *WIFI_TAG = "wifi";
+const char *MQTT_TAG = "mqtt";
+const char *UART_TAG = "mqtt";
 
 #define SSID CONFIG_SSID
 #define PASS CONFIG_PASS
@@ -146,6 +150,38 @@ void publish_init(esp_mqtt_client_handle_t client) {
       BASE, PUBLISH, publish_handler, client, &instance_mqtt_publish));
 }
 
+enum uart_state_t {
+  START = 0,    // look for a newline
+  LABEL = 1,    // parsing label
+  VALUE = 2,    // parsing value
+  FIELD = 3,    // have a field
+  CHECKSUM = 4, // We are ready to checksum and publish the proto
+};
+
+/*!max:re2c*/
+#ifndef YYMAXFILL
+#define YYMAXFILL 0
+#error This file needs to be preprocessed with re2c
+#endif
+typedef struct {
+  uint8_t *data;
+  size_t length;
+} buffer_t;
+
+int buffer_init(buffer_t *buf) {
+  buf->data = calloc(1 + YYMAXFILL, sizeof(uint8_t));
+  buf->length = 0;
+  if (buf->data == NULL) {
+    return ESP_ERR_NO_MEM;
+  } else {
+    return ESP_OK;
+  }
+}
+
+void buffer_free(buffer_t *buf) { free(buf->data); }
+
+void discard(buffer_t *buf) {}
+
 // https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/uart.html
 void serial_task(void *parameters) {
   const int uart_num = UART_NUM_1;
@@ -159,6 +195,115 @@ void serial_task(void *parameters) {
   // Configure UART parameters
   ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
   // block and read and publish to the event loop
+  enum uart_state_t state = START;
+  buffer_t buffer = {0};
+  ESP_ERROR_CHECK(buffer_init(&buffer));
+  buffer_t label = {0};
+  ESP_ERROR_CHECK(buffer_init(&label));
+  buffer_t value = {0};
+  ESP_ERROR_CHECK(buffer_init(&value));
+  uint16_t sum = 0;
+  while (true) {
+    // read more if we've just started or are either in label or value mode
+    if (state == START || state == LABEL || state == VALUE) {
+      size_t length = 0;
+      ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t *)&length));
+      if (length == 0)
+        continue;
+      uint8_t *tmp = reallocf(buffer.data, buffer.length + length);
+      if (tmp == NULL) {
+        ESP_LOGE(UART_TAG, "Could not realloc %lu bytes.", length);
+        buffer.length = 0;
+        sum = 0;
+        continue;
+      }
+      length =
+          uart_read_bytes(uart_num, buffer.data + buffer.length, length, 100);
+      if (length == 0)
+        continue;
+      // add what we just read to the checksum
+      for (size_t i = 0; i < length; i++)
+        sum += buffer.data[buffer.length + 1];
+      buffer.length += length;
+    }
+    switch (state) {
+    // Look for newline, and discard the rest of the data
+    case (START): {
+      uint8_t *index = memchr(buffer.data, '\n', buffer.length);
+      if (index == NULL)
+        continue;
+      size_t off = index - buffer.data;
+      memmove(buffer.data, buffer.data + off, buffer.length - off);
+      buffer.length -= off;
+      state = LABEL;
+      break;
+    }
+    // Get a label for a field
+    case (LABEL): {
+      uint8_t *index = memchr(buffer.data, '\t', buffer.length);
+      if (index == NULL)
+        continue;
+      size_t off = index - buffer.data;
+      if (off == 0)
+        continue;
+      if (off == 1) {
+        ESP_LOGE(UART_TAG, "empty label assuming a bad field");
+        label.length = 0;
+        state = START;
+        continue;
+      }
+      off -= 1; // chomp the tab character
+      label.data = reallocf(label.data, label.length + off);
+      if (label.data == NULL)
+        continue;
+      memcpy(label.data + label.length, buffer.data, off);
+      label.length = label.length + off;
+      label.data[label.length] = '\0';
+      // reset buffer
+      buffer.length = 0;
+      state = VALUE;
+      break;
+    }
+    // Grab a value, mostly the same as label, but that is ok, more readable
+    // this way.
+    case (VALUE): {
+      uint8_t *index = memchr(buffer.data, '\n', buffer.length);
+      if (index == NULL)
+        continue;
+      size_t off = index - buffer.data;
+      if (off == 0)
+        continue;
+      if (off == 1) {
+        ESP_LOGE(UART_TAG, "empty value assuming a bad field");
+        label.length = 0; // reset labels and values
+        value.length = 0;
+        state = START;
+        continue;
+      }
+      off -= 1; // chomp the newline character
+      value.data = reallocf(value.data, value.length + off);
+      if (value.data == NULL)
+        continue;
+      memcpy(value.data + value.length, buffer.data, off);
+      value.length = value.length + off;
+      value.data[value.length] = '\0';
+      // reset buffer
+      buffer.length = 0;
+      state = FIELD;
+      break;
+    }
+    case (FIELD): {
+      if (strncmp((char *)label.data, "IL", label.length) == 0) {
+      }
+      state = CHECKSUM;
+      break;
+    }
+    case (CHECKSUM): {
+      state = START;
+      break;
+    }
+    }
+  }
 }
 
 void serial_init() {
