@@ -13,9 +13,8 @@
 #include "parser.h"
 #include "sdkconfig.h"
 #include "soc/soc.h"
-#include <cstddef>
-#include <cstring>
-#include <sys/_types/_size_t.h>
+#include <stddef.h>
+#include <string.h>
 
 const char *WIFI_TAG = "wifi";
 const char *MQTT_TAG = "mqtt";
@@ -158,11 +157,6 @@ enum uart_state_t {
   CHECKSUM = 4, // We are ready to checksum and publish the proto
 };
 
-/*!max:re2c*/
-#ifndef YYMAXFILL
-#define YYMAXFILL 0
-#error This file needs to be preprocessed with re2c
-#endif
 typedef struct {
   uint8_t *data;
   size_t length;
