@@ -1,0 +1,15 @@
+To build source esp:
+
+. $IDF_PATH/export.fish
+
+install pip requirements:
+
+pip install -r requirements.txt
+
+install re2c:
+
+brew install re2c
+
+and build:
+
+idf.py build
