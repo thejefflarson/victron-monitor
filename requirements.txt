@@ -2,7 +2,7 @@ bitstring==3.1.7
 Brotli==1.0.9
 cffi==1.14.3
 click==7.1.2
-cryptography==42.0.2
+cryptography==42.0.4
 dnspython==2.0.0
 eventlet==0.31.0
 Flask==2.2.5
